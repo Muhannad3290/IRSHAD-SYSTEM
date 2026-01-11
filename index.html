@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v2.3</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v2.4 (Bulk Ops)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -46,13 +46,14 @@
             
             const [currentView, setCurrentView] = useState('dashboard');
             const [selectedCase, setSelectedCase] = useState(null);
+            
+            // Modals
             const [showModal, setShowModal] = useState(false);
             const [showSettings, setShowSettings] = useState(false);
-            
-            // NEW: Report Modal State
             const [showReportModal, setShowReportModal] = useState(false);
-            const [reportFilters, setReportFilters] = useState({ bank: '', status: '' });
+            const [showImportModal, setShowImportModal] = useState(false); // NEW: Import Modal State
 
+            const [reportFilters, setReportFilters] = useState({ bank: '', status: '' });
             const [isEditing, setIsEditing] = useState(false);
             
             const [search, setSearch] = useState('');
@@ -66,6 +67,7 @@
             const [isCameraActive, setIsCameraActive] = useState(false);
             const videoRef = useRef(null);
             const canvasRef = useRef(null);
+            const fileInputRef = useRef(null); // Ref for file upload
 
             useEffect(() => {
                 localStorage.setItem('irshad_cases', JSON.stringify(cases));
@@ -104,6 +106,90 @@
                 });
             }, [cases, search, startDate, endDate]);
 
+            // --- EXCEL BULK IMPORT FUNCTIONS ---
+
+            const downloadTemplate = () => {
+                // Create a clear template for the user
+                const headers = ["SI_NO", "BANK_NAME", "BUYER", "SELLER", "STATUS", ...customHeadings];
+                const exampleRow = ["1001", "Global Bank", "John Doe", "Jane Smith", "Pending", ...customHeadings.map(() => "Example Value")];
+                
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Import_Template");
+                XLSX.writeFile(workbook, "Irshad_System_Import_Template.xlsx");
+            };
+
+            const handleBulkImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const bstr = evt.target.result;
+                        const wb = XLSX.read(bstr, { type: 'binary' });
+                        const wsname = wb.SheetNames[0];
+                        const ws = wb.Sheets[wsname];
+                        const data = XLSX.utils.sheet_to_json(ws);
+
+                        if (data.length === 0) { alert("Excel file is empty!"); return; }
+
+                        const timestamp = new Date().toLocaleString('en-GB');
+                        let importedCount = 0;
+
+                        const newCases = data.map((row, index) => {
+                            // Extract Standard Fields
+                            const siNo = row["SI_NO"] || row["SI No"] || `AUTO-${Date.now()}-${index}`;
+                            const bankName = row["BANK_NAME"] || row["Bank Name"] || "Unknown Bank";
+                            const buyer = row["BUYER"] || row["Buyer"] || "-";
+                            const seller = row["SELLER"] || row["Seller"] || "-";
+                            const status = row["STATUS"] || row["Status"] || "Pending";
+
+                            // Extract Custom Fields
+                            // Any key in the Excel that isn't a standard key becomes a custom field
+                            const standardKeys = ["SI_NO", "SI No", "BANK_NAME", "Bank Name", "BUYER", "Buyer", "SELLER", "Seller", "STATUS", "Status"];
+                            const rowCustomFields = Object.keys(row)
+                                .filter(key => !standardKeys.includes(key))
+                                .map(key => ({ label: key, value: String(row[key]) }));
+
+                            importedCount++;
+
+                            return {
+                                id: Date.now() + index, // Ensure unique ID
+                                siNo: String(siNo),
+                                bankName: String(bankName),
+                                buyer: String(buyer),
+                                seller: String(seller),
+                                status: statusList.includes(status) ? status : "Pending",
+                                photo: null, // Cannot import images via basic Excel
+                                timestamp: timestamp,
+                                statusTimestamp: timestamp,
+                                customFields: rowCustomFields
+                            };
+                        });
+
+                        setCases(prev => [...newCases, ...prev]);
+                        
+                        // Update bank list if new banks are found
+                        const newBanks = [...new Set(newCases.map(c => c.bankName))];
+                        setBankList(prev => [...new Set([...prev, ...newBanks])]);
+
+                        // Update custom headings if new ones found
+                        const newHeadings = [...new Set(newCases.flatMap(c => c.customFields.map(f => f.label)))];
+                        setCustomHeadings(prev => [...new Set([...prev, ...newHeadings])]);
+
+                        alert(`Success! ${importedCount} records imported successfully.`);
+                        setShowImportModal(false);
+                    } catch (error) {
+                        console.error(error);
+                        alert("Error parsing Excel file. Please use the Template.");
+                    }
+                };
+                reader.readAsBinaryString(file);
+            };
+
+            // --- EXPORT FUNCTIONS ---
+
             const exportToExcel = () => {
                 const excelData = filteredData.map(c => {
                     const row = {
@@ -122,9 +208,6 @@
                     return row;
                 });
                 const worksheet = XLSX.utils.json_to_sheet(excelData);
-                const wscols = [{wch: 15}, {wch: 25}, {wch: 25}, {wch: 20}, {wch: 20}, {wch: 15}, {wch: 25}];
-                allUsedHeadings.forEach(() => wscols.push({wch: 20}));
-                worksheet['!cols'] = wscols;
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Registry_Report");
                 XLSX.writeFile(workbook, `Irshad_System_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -156,7 +239,6 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
-            // NEW: Targeted PDF Generation
             const generateTargetedPDF = () => {
                 const { bank, status } = reportFilters;
                 if (!bank && !status) { alert("Please select at least one filter."); return; }
@@ -172,25 +254,22 @@
                 const doc = new jsPDF('l', 'mm', 'a4');
                 const date = new Date().toLocaleString('en-GB');
 
-                // Professional Header
                 doc.setFontSize(22);
-                doc.setTextColor(30, 41, 59); // Slate 800
+                doc.setTextColor(30, 41, 59);
                 doc.setFont("helvetica", "bold");
                 doc.text("OFFICIAL STATUS REPORT", 14, 20);
 
-                // Sub-header details
                 doc.setFontSize(10);
-                doc.setTextColor(100, 116, 139); // Slate 500
+                doc.setTextColor(100, 116, 139);
                 doc.setFont("helvetica", "normal");
                 doc.text(`Generated: ${date}`, 14, 26);
                 
-                // Filter Info Box
                 doc.setDrawColor(226, 232, 240);
                 doc.setFillColor(248, 250, 252);
                 doc.roundedRect(14, 32, 270, 20, 3, 3, 'FD');
                 
                 doc.setFontSize(11);
-                doc.setTextColor(59, 130, 246); // Blue 600
+                doc.setTextColor(59, 130, 246);
                 doc.setFont("helvetica", "bold");
                 doc.text("REPORT CRITERIA:", 20, 45);
                 
@@ -216,7 +295,7 @@
                     theme: 'grid', 
                     headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
                     bodyStyles: { fontSize: 9, cellPadding: 4 },
-                    alternateRowStyles: { fillColor: [241, 245, 249] }, // Light slate alternate
+                    alternateRowStyles: { fillColor: [241, 245, 249] },
                     columnStyles: { 0: { fontStyle: 'bold' } }
                 });
 
@@ -316,10 +395,14 @@
                             <SidebarLink active={showSettings} onClick={() => setShowSettings(true)} icon="settings" label="Categories" />
                         </div>
                         <div className="mt-auto pt-4 border-t space-y-2">
-                            <button onClick={exportToExcel} className="w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2"><Icon name="file-spreadsheet" size={16}/> Export Excel</button>
-                            <button onClick={exportToPDF} className="w-full py-3 bg-slate-800 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2"><Icon name="printer" size={16}/> Export PDF</button>
+                            {/* Import Button */}
+                            <button onClick={() => setShowImportModal(true)} className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-xs font-black shadow-sm flex items-center justify-center gap-2 hover:bg-slate-200"><Icon name="upload-cloud" size={16}/> Bulk Import</button>
                             
-                            {/* NEW: Custom Report Button */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <button onClick={exportToExcel} className="w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1"><Icon name="file-spreadsheet" size={14}/> Excel</button>
+                                <button onClick={exportToPDF} className="w-full py-3 bg-slate-800 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1"><Icon name="printer" size={14}/> PDF</button>
+                            </div>
+                            
                             <button onClick={() => { setReportFilters({bank: '', status: ''}); setShowReportModal(true); }} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"><Icon name="file-text" size={16}/> Specific Report</button>
                             
                             <button onClick={openNewEntry} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black shadow-xl hover:bg-blue-700 transition-all mt-2 flex items-center justify-center gap-2"><Icon name="plus" /> New Entry</button>
@@ -568,7 +651,7 @@
                         </div>
                     )}
 
-                    {/* NEW: Custom Report Modal */}
+                    {/* Report Modal */}
                     {showReportModal && (
                         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
                             <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
@@ -596,6 +679,46 @@
                                 <div className="pt-4 flex gap-3">
                                     <button onClick={() => setShowReportModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase hover:bg-slate-200 transition-all">Cancel</button>
                                     <button onClick={generateTargetedPDF} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase shadow-lg hover:bg-indigo-700 transition-all">Download PDF</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NEW: Import Modal */}
+                    {showImportModal && (
+                        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+                            <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
+                                <div className="text-center">
+                                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="upload-cloud" size={32}/></div>
+                                    <h3 className="font-black text-slate-800 text-xl uppercase tracking-tight">Bulk Data Import</h3>
+                                    <p className="text-xs text-slate-400 mt-2 font-medium">Add multiple records at once using Excel.</p>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center space-y-4">
+                                        <p className="text-xs font-bold text-slate-500">Step 1: Get the format</p>
+                                        <button onClick={downloadTemplate} className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase shadow-sm flex items-center justify-center gap-2 hover:border-blue-300 hover:text-blue-600 transition-all">
+                                            <Icon name="download" size={16}/> Download Excel Template
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center space-y-4 relative">
+                                        <p className="text-xs font-bold text-slate-500">Step 2: Upload filled file</p>
+                                        <input 
+                                            type="file" 
+                                            accept=".xlsx, .xls" 
+                                            onChange={handleBulkImport} 
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                        />
+                                        <div className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 flex flex-col items-center justify-center gap-2 bg-white">
+                                            <Icon name="file-spreadsheet" size={24} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Click to Upload Excel</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2">
+                                    <button onClick={() => setShowImportModal(false)} className="w-full py-4 bg-slate-800 text-white rounded-2xl font-black uppercase shadow-lg hover:bg-slate-900 transition-all">Close</button>
                                 </div>
                             </div>
                         </div>
