@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v2.6 (Unified Dashboard)</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v2.7 (Compact Dashboard)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -340,39 +340,39 @@
                         {currentView === 'dashboard' && (
                             <div className="space-y-6 animate-in fade-in duration-500">
                                 
-                                {/* REPLACED: Stats Grid with Single Summary Table */}
-                                <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
-                                    <h2 className="font-black text-slate-800 text-lg mb-6 uppercase tracking-tight flex items-center gap-2">
-                                        <Icon name="pie-chart" className="text-blue-600"/> Analytics Summary
+                                {/* REPLACED: Large Table with Very Small "Widget" Style Table */}
+                                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm w-full md:max-w-xs">
+                                    <h2 className="font-bold text-slate-800 text-xs mb-3 uppercase tracking-tight flex items-center gap-2">
+                                        <Icon name="pie-chart" size={14} className="text-blue-600"/> Analytics
                                     </h2>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-separate border-spacing-0">
                                             <thead>
-                                                <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                                                    <th className="pb-4 pl-4 border-b">Category / Status</th>
-                                                    <th className="pb-4 text-right pr-4 border-b">Records Count</th>
+                                                <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                                    <th className="pb-2 pl-2 border-b">Status</th>
+                                                    <th className="pb-2 text-right pr-2 border-b">Count</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
                                                 {/* Total Row */}
                                                 <tr className="group hover:bg-slate-50 transition-colors">
-                                                    <td className="py-4 pl-4 font-black text-slate-800 flex items-center gap-3">
-                                                        <div className="p-2 bg-slate-100 rounded-lg text-slate-600"><Icon name="layers" size={16} /></div>
-                                                        TOTAL RECORDS
+                                                    <td className="py-2 pl-2 font-black text-slate-800 flex items-center gap-2 text-[10px]">
+                                                        <div className="p-1 bg-slate-100 rounded text-slate-600"><Icon name="layers" size={10} /></div>
+                                                        TOTAL
                                                     </td>
-                                                    <td className="py-4 text-right pr-4 font-black text-xl text-slate-900">{cases.length}</td>
+                                                    <td className="py-2 text-right pr-2 font-black text-xs text-slate-900">{cases.length}</td>
                                                 </tr>
                                                 
                                                 {/* Status Loop */}
                                                 {statusList.map(st => (
                                                     <tr key={st} className="group hover:bg-slate-50 transition-colors">
-                                                        <td className="py-4 pl-4 font-bold text-slate-600 flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${st === 'Processed' ? 'bg-emerald-100 text-emerald-600' : st === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                                <Icon name="activity" size={14} />
+                                                        <td className="py-2 pl-2 font-bold text-slate-600 flex items-center gap-2 text-[10px]">
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center ${st === 'Processed' ? 'bg-emerald-100 text-emerald-600' : st === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                <Icon name="activity" size={10} />
                                                             </div>
                                                             {st}
                                                         </td>
-                                                        <td className="py-4 text-right pr-4 font-bold text-lg text-slate-700">
+                                                        <td className="py-2 text-right pr-2 font-bold text-xs text-slate-700">
                                                             {cases.filter(c => c.status === st).length}
                                                         </td>
                                                     </tr>
@@ -381,7 +381,7 @@
                                         </table>
                                     </div>
                                 </div>
-                                {/* End of Summary Table */}
+                                {/* End of Compact Summary Table */}
 
                                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
                                     <h2 className="font-black text-slate-800 text-lg mb-6 uppercase tracking-tight">Latest Entries</h2>
@@ -713,8 +713,6 @@
         const SidebarLink = ({ active, onClick, icon, label }) => (
             <button onClick={onClick} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-sm transition-all ${active ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}><Icon name={icon} size={18} /> {label}</button>
         );
-
-        // NOTE: StatBox removed as it is no longer used in the Dashboard view.
 
         const StatusBadge = ({ status }) => {
             const colors = { 'Pending': 'bg-amber-50 text-amber-600 border-amber-100', 'Processed': 'bg-emerald-50 text-emerald-600 border-emerald-100', 'Under Process': 'bg-blue-50 text-blue-600 border-blue-100' };
