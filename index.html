@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v2.5 (Multi-Report)</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v2.6 (Unified Dashboard)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -53,7 +53,6 @@
             const [showReportModal, setShowReportModal] = useState(false);
             const [showImportModal, setShowImportModal] = useState(false);
 
-            // CHANGED: Status is now an array [] for multi-selection
             const [reportFilters, setReportFilters] = useState({ bank: '', status: [] });
             const [isEditing, setIsEditing] = useState(false);
             
@@ -192,18 +191,10 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
-            // --- UPDATED REPORT LOGIC FOR MULTIPLE STATUS ---
             const generateTargetedPDF = () => {
-                const { bank, status } = reportFilters; // Status is now an array []
-                
-                // If no bank is selected AND no status selected, warn user (or allow all)
+                const { bank, status } = reportFilters; 
                 if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
-
-                const targetData = cases.filter(c => 
-                    (bank ? c.bankName === bank : true) && 
-                    (status.length > 0 ? status.includes(c.status) : true)
-                );
-
+                const targetData = cases.filter(c => (bank ? c.bankName === bank : true) && (status.length > 0 ? status.includes(c.status) : true));
                 if (targetData.length === 0) { alert("No records found for these criteria."); return; }
 
                 const { jsPDF } = window.jspdf;
@@ -212,19 +203,17 @@
 
                 doc.setFontSize(22); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
                 doc.text("OFFICIAL STATUS REPORT", 14, 20);
-
                 doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
                 doc.text(`Generated: ${date}`, 14, 26);
                 
                 doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252);
-                doc.roundedRect(14, 32, 270, 25, 3, 3, 'FD'); // Made height slightly larger
+                doc.roundedRect(14, 32, 270, 25, 3, 3, 'FD');
                 
                 doc.setFontSize(11); doc.setTextColor(59, 130, 246); doc.setFont("helvetica", "bold");
                 doc.text("REPORT CRITERIA:", 20, 48);
                 
                 doc.setTextColor(30, 41, 59);
                 doc.text(`BANK: ${bank || 'All Banks'}`, 70, 48);
-                // Display joined statuses
                 const statusText = status.length > 0 ? status.join(', ') : 'All Statuses';
                 doc.text(`STATUS: ${statusText}`, 150, 48, { maxWidth: 100 }); 
                 
@@ -235,13 +224,7 @@
                     return row;
                 });
 
-                doc.autoTable({ 
-                    head: header, body: body, startY: 65, theme: 'grid', 
-                    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
-                    bodyStyles: { fontSize: 9, cellPadding: 4 }, alternateRowStyles: { fillColor: [241, 245, 249] },
-                    columnStyles: { 0: { fontStyle: 'bold' } }
-                });
-
+                doc.autoTable({ head: header, body: body, startY: 65, theme: 'grid', headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' }, bodyStyles: { fontSize: 9, cellPadding: 4 }, alternateRowStyles: { fillColor: [241, 245, 249] }, columnStyles: { 0: { fontStyle: 'bold' } } });
                 doc.save(`Report_${bank || 'All'}_Filtered.pdf`);
                 setShowReportModal(false);
             };
@@ -355,13 +338,51 @@
 
                     <main className="flex-1 p-4 md:p-10 pb-24">
                         {currentView === 'dashboard' && (
-                            <div className="space-y-8 animate-in fade-in duration-500">
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto no-scrollbar pb-2">
-                                    <StatBox label="Total Records" val={cases.length} icon="layers" color="text-slate-700" />
-                                    {statusList.map(st => (
-                                        <StatBox key={st} label={st} val={cases.filter(c => c.status === st).length} icon="activity" color="text-blue-600" />
-                                    ))}
+                            <div className="space-y-6 animate-in fade-in duration-500">
+                                
+                                {/* REPLACED: Stats Grid with Single Summary Table */}
+                                <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
+                                    <h2 className="font-black text-slate-800 text-lg mb-6 uppercase tracking-tight flex items-center gap-2">
+                                        <Icon name="pie-chart" className="text-blue-600"/> Analytics Summary
+                                    </h2>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-separate border-spacing-0">
+                                            <thead>
+                                                <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                                    <th className="pb-4 pl-4 border-b">Category / Status</th>
+                                                    <th className="pb-4 text-right pr-4 border-b">Records Count</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {/* Total Row */}
+                                                <tr className="group hover:bg-slate-50 transition-colors">
+                                                    <td className="py-4 pl-4 font-black text-slate-800 flex items-center gap-3">
+                                                        <div className="p-2 bg-slate-100 rounded-lg text-slate-600"><Icon name="layers" size={16} /></div>
+                                                        TOTAL RECORDS
+                                                    </td>
+                                                    <td className="py-4 text-right pr-4 font-black text-xl text-slate-900">{cases.length}</td>
+                                                </tr>
+                                                
+                                                {/* Status Loop */}
+                                                {statusList.map(st => (
+                                                    <tr key={st} className="group hover:bg-slate-50 transition-colors">
+                                                        <td className="py-4 pl-4 font-bold text-slate-600 flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${st === 'Processed' ? 'bg-emerald-100 text-emerald-600' : st === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                <Icon name="activity" size={14} />
+                                                            </div>
+                                                            {st}
+                                                        </td>
+                                                        <td className="py-4 text-right pr-4 font-bold text-lg text-slate-700">
+                                                            {cases.filter(c => c.status === st).length}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
+                                {/* End of Summary Table */}
+
                                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
                                     <h2 className="font-black text-slate-800 text-lg mb-6 uppercase tracking-tight">Latest Entries</h2>
                                     <div className="table-container overflow-x-auto">
@@ -693,12 +714,7 @@
             <button onClick={onClick} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-sm transition-all ${active ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}><Icon name={icon} size={18} /> {label}</button>
         );
 
-        const StatBox = ({ label, val, icon, color }) => (
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col justify-between h-36 min-w-[170px]">
-                <div className="flex justify-between items-center text-[10px] font-black text-slate-300 uppercase tracking-widest"><span>{label}</span><Icon name={icon} size={14} className="text-slate-200" /></div>
-                <div className={`text-5xl font-black tracking-tighter ${color}`}>{val}</div>
-            </div>
-        );
+        // NOTE: StatBox removed as it is no longer used in the Dashboard view.
 
         const StatusBadge = ({ status }) => {
             const colors = { 'Pending': 'bg-amber-50 text-amber-600 border-amber-100', 'Processed': 'bg-emerald-50 text-emerald-600 border-emerald-100', 'Under Process': 'bg-blue-50 text-blue-600 border-blue-100' };
