@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v2.7 (Compact Dashboard)</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v2.8 (Excel Report Update)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -164,10 +164,31 @@
                 reader.readAsBinaryString(file);
             };
 
-            // --- IMPROVED PROFESSIONAL EXCEL EXPORT ---
+            // --- EXPORT FUNCTION (Global) ---
             const exportToExcel = () => {
-                // 1. Structure Data Cleanly
-                const excelData = filteredData.map(c => {
+                // Use filteredData for global export
+                generateExcelFile(filteredData, `Irshad_System_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+            };
+
+            // --- SPECIFIC REPORT EXCEL GENERATION ---
+            const generateTargetedExcel = () => {
+                const { bank, status } = reportFilters; 
+                if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
+                
+                // Filter the data based on modal selection
+                const targetData = cases.filter(c => (bank ? c.bankName === bank : true) && (status.length > 0 ? status.includes(c.status) : true));
+                
+                if (targetData.length === 0) { alert("No records found for these criteria."); return; }
+
+                const filename = `Specific_Report_${bank || 'All'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+                generateExcelFile(targetData, filename);
+                setShowReportModal(false);
+            };
+
+            // --- REUSABLE PROFESSIONAL EXCEL GENERATOR HELPER ---
+            const generateExcelFile = (dataToExport, fileName) => {
+                // 1. Structure Data
+                const excelData = dataToExport.map(c => {
                     const row = { 
                         "SERIAL NO": c.siNo, 
                         "DATE & TIME": c.timestamp, 
@@ -211,38 +232,35 @@
                     }
                 };
 
-                // 4. APPLY STYLES AND CALCULATE COLUMN WIDTHS
+                // 4. APPLY STYLES
                 const range = XLSX.utils.decode_range(worksheet['!ref']);
                 const colWidths = [];
 
                 for (let C = range.s.c; C <= range.e.c; ++C) {
-                    let maxWidth = 15; // Minimum column width
+                    let maxWidth = 15; 
                     
                     for (let R = range.s.r; R <= range.e.r; ++R) {
                         const cellRef = XLSX.utils.encode_cell({c: C, r: R});
                         if (!worksheet[cellRef]) continue;
 
-                        // Apply Styles
                         if (R === 0) {
-                            worksheet[cellRef].s = headerStyle; // Header Style
+                            worksheet[cellRef].s = headerStyle; 
                         } else {
-                            worksheet[cellRef].s = cellStyle; // Data Style
+                            worksheet[cellRef].s = cellStyle; 
                         }
 
-                        // Calculate Width (Auto-fit)
                         const cellValue = worksheet[cellRef].v ? worksheet[cellRef].v.toString() : "";
                         if (cellValue.length > maxWidth) maxWidth = cellValue.length;
                     }
-                    // Cap max width to avoid massive columns
                     colWidths.push({ wch: Math.min(maxWidth + 5, 50) });
                 }
 
-                worksheet['!cols'] = colWidths; // Set the widths
+                worksheet['!cols'] = colWidths; 
 
                 // 5. Save File
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Registry_Report");
-                XLSX.writeFile(workbook, `Irshad_System_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+                XLSX.writeFile(workbook, fileName);
             };
 
             const exportToPDF = () => {
@@ -711,8 +729,11 @@
                                     </div>
                                 </div>
                                 <div className="pt-4 flex gap-3">
-                                    <button onClick={() => setShowReportModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase hover:bg-slate-200 transition-all">Cancel</button>
-                                    <button onClick={generateTargetedPDF} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase shadow-lg hover:bg-indigo-700 transition-all">Download PDF</button>
+                                    <button onClick={() => setShowReportModal(false)} className="px-6 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase hover:bg-slate-200 transition-all">Cancel</button>
+                                    <div className="flex flex-1 gap-2">
+                                        <button onClick={generateTargetedExcel} className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase shadow-lg hover:bg-emerald-700 transition-all text-xs flex items-center justify-center gap-1"><Icon name="file-spreadsheet" size={14}/> Excel</button>
+                                        <button onClick={generateTargetedPDF} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase shadow-lg hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-1"><Icon name="printer" size={14}/> PDF</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
