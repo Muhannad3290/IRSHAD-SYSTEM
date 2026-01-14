@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v2.8 (Excel Report Update)</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v2.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -11,7 +11,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
     
     <style>
@@ -42,12 +41,12 @@
             const [trash, setTrash] = useState(() => JSON.parse(localStorage.getItem('irshad_trash')) || []);
             
             const [bankList, setBankList] = useState(() => JSON.parse(localStorage.getItem('irshad_banks')) || ['Global Bank', 'Central Trust', 'Federal Reserve']);
-            const [statusList, setStatusList] = useState(() => JSON.parse(localStorage.getItem('irshad_status')) || ['Pending', 'Under Process', 'Processed']);
+            const [statusList, setStatusList] = useState(() => JSON.parse(localStorage.getItem('irshad_status')) || ['Pending', 'Under Process', 'Processed', 'Delivered']);
             const [customHeadings, setCustomHeadings] = useState(() => JSON.parse(localStorage.getItem('irshad_headings')) || []);
             
             const [currentView, setCurrentView] = useState('dashboard');
             const [selectedCase, setSelectedCase] = useState(null);
-            
+
             // Modals
             const [showModal, setShowModal] = useState(false);
             const [showSettings, setShowSettings] = useState(false);
@@ -60,7 +59,7 @@
             const [search, setSearch] = useState('');
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
-            
+
             const [formData, setFormData] = useState({ 
                 siNo: '', bankName: '', buyer: '', seller: '', status: 'Pending', photo: null, customFields: [] 
             });
@@ -75,6 +74,7 @@
                 localStorage.setItem('irshad_banks', JSON.stringify(bankList));
                 localStorage.setItem('irshad_status', JSON.stringify(statusList));
                 localStorage.setItem('irshad_headings', JSON.stringify(customHeadings));
+             
                 if (selectedCase) {
                     const updated = cases.find(c => c.id === selectedCase.id);
                     if (updated) setSelectedCase(updated);
@@ -94,7 +94,7 @@
                         c.buyer.toLowerCase().includes(s) || 
                         c.seller.toLowerCase().includes(s) ||
                         c.customFields.some(f => f.value.toLowerCase().includes(s));
-
+ 
                     let matchesDate = true;
                     if (startDate || endDate) {
                         const dateParts = c.timestamp.split(',')[0].split('/');
@@ -102,6 +102,7 @@
                         if (startDate) matchesDate = matchesDate && caseDate >= new Date(startDate);
                         if (endDate) matchesDate = matchesDate && caseDate <= new Date(endDate);
                     }
+             
                     return matchesSearch && matchesDate;
                 });
             }, [cases, search, startDate, endDate]);
@@ -128,6 +129,7 @@
                         const ws = wb.Sheets[wsname];
                         const data = XLSX.utils.sheet_to_json(ws);
                         if (data.length === 0) { alert("Excel file is empty!"); return; }
+                        
                         const timestamp = new Date().toLocaleString('en-GB');
                         let importedCount = 0;
                         const newCases = data.map((row, index) => {
@@ -136,9 +138,11 @@
                             const buyer = row["BUYER"] || row["Buyer"] || "-";
                             const seller = row["SELLER"] || row["Seller"] || "-";
                             const status = row["STATUS"] || row["Status"] || "Pending";
+            
                             const standardKeys = ["SI_NO", "SI No", "BANK_NAME", "Bank Name", "BUYER", "Buyer", "SELLER", "Seller", "STATUS", "Status"];
                             const rowCustomFields = Object.keys(row).filter(key => !standardKeys.includes(key)).map(key => ({ label: key, value: String(row[key]) }));
                             importedCount++;
+  
                             return {
                                 id: Date.now() + index,
                                 siNo: String(siNo),
@@ -166,18 +170,15 @@
 
             // --- EXPORT FUNCTION (Global) ---
             const exportToExcel = () => {
-                // Use filteredData for global export
                 generateExcelFile(filteredData, `Irshad_System_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
             };
 
             // --- SPECIFIC REPORT EXCEL GENERATION ---
             const generateTargetedExcel = () => {
-                const { bank, status } = reportFilters; 
+                const { bank, status } = reportFilters;
                 if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
                 
-                // Filter the data based on modal selection
                 const targetData = cases.filter(c => (bank ? c.bankName === bank : true) && (status.length > 0 ? status.includes(c.status) : true));
-                
                 if (targetData.length === 0) { alert("No records found for these criteria."); return; }
 
                 const filename = `Specific_Report_${bank || 'All'}_${new Date().toISOString().slice(0,10)}.xlsx`;
@@ -187,7 +188,6 @@
 
             // --- REUSABLE PROFESSIONAL EXCEL GENERATOR HELPER ---
             const generateExcelFile = (dataToExport, fileName) => {
-                // 1. Structure Data
                 const excelData = dataToExport.map(c => {
                     const row = { 
                         "SERIAL NO": c.siNo, 
@@ -205,13 +205,11 @@
                     return row;
                 });
 
-                // 2. Create Sheet
                 const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-                // 3. DEFINE PROFESSIONAL STYLES
                 const headerStyle = {
                     font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
-                    fill: { fgColor: { rgb: "2563EB" } }, // Blue Header
+                    fill: { fgColor: { rgb: "2563EB" } }, 
                     alignment: { horizontal: "center", vertical: "center" },
                     border: {
                         top: { style: "thin", color: { rgb: "000000" } },
@@ -232,21 +230,19 @@
                     }
                 };
 
-                // 4. APPLY STYLES
                 const range = XLSX.utils.decode_range(worksheet['!ref']);
                 const colWidths = [];
 
                 for (let C = range.s.c; C <= range.e.c; ++C) {
-                    let maxWidth = 15; 
-                    
+                    let maxWidth = 15;
                     for (let R = range.s.r; R <= range.e.r; ++R) {
                         const cellRef = XLSX.utils.encode_cell({c: C, r: R});
                         if (!worksheet[cellRef]) continue;
 
                         if (R === 0) {
-                            worksheet[cellRef].s = headerStyle; 
+                            worksheet[cellRef].s = headerStyle;
                         } else {
-                            worksheet[cellRef].s = cellStyle; 
+                            worksheet[cellRef].s = cellStyle;
                         }
 
                         const cellValue = worksheet[cellRef].v ? worksheet[cellRef].v.toString() : "";
@@ -255,9 +251,7 @@
                     colWidths.push({ wch: Math.min(maxWidth + 5, 50) });
                 }
 
-                worksheet['!cols'] = colWidths; 
-
-                // 5. Save File
+                worksheet['!cols'] = colWidths;
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Registry_Report");
                 XLSX.writeFile(workbook, fileName);
@@ -278,9 +272,11 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
+            // --- TARGETED PDF WITH SIGNATURES ---
             const generateTargetedPDF = () => {
-                const { bank, status } = reportFilters; 
+                const { bank, status } = reportFilters;
                 if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
+                
                 const targetData = cases.filter(c => (bank ? c.bankName === bank : true) && (status.length > 0 ? status.includes(c.status) : true));
                 if (targetData.length === 0) { alert("No records found for these criteria."); return; }
 
@@ -293,16 +289,16 @@
                 doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
                 doc.text(`Generated: ${date}`, 14, 26);
                 
-                doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252);
+                doc.setDrawColor(226, 232, 240);
+                doc.setFillColor(248, 250, 252);
                 doc.roundedRect(14, 32, 270, 25, 3, 3, 'FD');
                 
                 doc.setFontSize(11); doc.setTextColor(59, 130, 246); doc.setFont("helvetica", "bold");
                 doc.text("REPORT CRITERIA:", 20, 48);
-                
                 doc.setTextColor(30, 41, 59);
                 doc.text(`BANK: ${bank || 'All Banks'}`, 70, 48);
                 const statusText = status.length > 0 ? status.join(', ') : 'All Statuses';
-                doc.text(`STATUS: ${statusText}`, 150, 48, { maxWidth: 100 }); 
+                doc.text(`STATUS: ${statusText}`, 150, 48, { maxWidth: 100 });
                 
                 const header = [["SI No", "Date", "Bank", "Buyer", "Seller", "Status", ...allUsedHeadings]];
                 const body = targetData.map(c => {
@@ -311,7 +307,48 @@
                     return row;
                 });
 
-                doc.autoTable({ head: header, body: body, startY: 65, theme: 'grid', headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' }, bodyStyles: { fontSize: 9, cellPadding: 4 }, alternateRowStyles: { fillColor: [241, 245, 249] }, columnStyles: { 0: { fontStyle: 'bold' } } });
+                doc.autoTable({ 
+                    head: header, 
+                    body: body, 
+                    startY: 65, 
+                    theme: 'grid', 
+                    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' }, 
+                    bodyStyles: { fontSize: 9, cellPadding: 4 }, 
+                    alternateRowStyles: { fillColor: [241, 245, 249] }, 
+                    columnStyles: { 0: { fontStyle: 'bold' } } 
+                });
+
+                // --- SIGNATURE SECTION ONLY FOR DELIVERED STATUS ---
+                if (status.includes("Delivered")) {
+                    let finalY = doc.lastAutoTable.finalY;
+                    
+                    if (finalY > 160) {
+                        doc.addPage();
+                        finalY = 20; 
+                    }
+                    
+                    const sigY = finalY + 30;
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(30, 41, 59);
+                    doc.setFont("helvetica", "bold");
+
+                    // 1. Prepared By
+                    doc.text("Prepared by:", 30, sigY);
+                    doc.setLineWidth(0.5);
+                    doc.setDrawColor(30, 41, 59);
+                    doc.line(30, sigY + 15, 80, sigY + 15);
+
+                    // 2. Delivered By
+                    doc.text("Delivered by:", 120, sigY);
+                    doc.line(120, sigY + 15, 170, sigY + 15);
+
+                    // 3. Received By
+                    doc.text("Received by:", 210, sigY);
+                    doc.line(210, sigY + 15, 260, sigY + 15);
+                }
+                // --- END SIGNATURE SECTION ---
+
                 doc.save(`Report_${bank || 'All'}_Filtered.pdf`);
                 setShowReportModal(false);
             };
@@ -412,6 +449,7 @@
                             <SidebarLink active={currentView === 'trash'} onClick={() => setCurrentView('trash')} icon="trash-2" label="Recycle Bin" />
                             <SidebarLink active={showSettings} onClick={() => setShowSettings(true)} icon="settings" label="Categories" />
                         </div>
+                        
                         <div className="mt-auto pt-4 border-t space-y-2">
                             <button onClick={() => setShowImportModal(true)} className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-xs font-black shadow-sm flex items-center justify-center gap-2 hover:bg-slate-200"><Icon name="upload-cloud" size={16}/> Bulk Import</button>
                             <div className="grid grid-cols-2 gap-2">
@@ -426,7 +464,6 @@
                     <main className="flex-1 p-4 md:p-10 pb-24">
                         {currentView === 'dashboard' && (
                             <div className="space-y-6 animate-in fade-in duration-500">
-                                
                                 <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm w-full md:max-w-xs">
                                     <h2 className="font-bold text-slate-800 text-xs mb-3 uppercase tracking-tight flex items-center gap-2">
                                         <Icon name="pie-chart" size={14} className="text-blue-600"/> Analytics
@@ -447,7 +484,6 @@
                                                     </td>
                                                     <td className="py-2 text-right pr-2 font-black text-xs text-slate-900">{cases.length}</td>
                                                 </tr>
-                                                
                                                 {statusList.map(st => (
                                                     <tr key={st} className="group hover:bg-slate-50 transition-colors">
                                                         <td className="py-2 pl-2 font-bold text-slate-600 flex items-center gap-2 text-[10px]">
@@ -675,7 +711,7 @@
                                             </div>
                                         ))}
                                         <button type="button" onClick={() => { 
-                                            const label = prompt("Heading Name (e.g. Phone):"); 
+                                            const label = prompt("Heading Name (e.g. Phone):");
                                             if(label) { setCustomHeadings([...customHeadings, label]); setFormData({...formData, customFields: [...formData.customFields, {label, value: ''}]}); }
                                         }} className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase hover:underline"><Icon name="plus-circle" size={14}/> Add Permanent Heading</button>
                                     </div>
@@ -690,7 +726,6 @@
                         </div>
                     )}
 
-                    {/* UPDATED REPORT MODAL */}
                     {showReportModal && (
                         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
                             <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
@@ -799,7 +834,6 @@
         const SidebarLink = ({ active, onClick, icon, label }) => (
             <button onClick={onClick} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-sm transition-all ${active ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}><Icon name={icon} size={18} /> {label}</button>
         );
-
         const StatusBadge = ({ status }) => {
             const colors = { 'Pending': 'bg-amber-50 text-amber-600 border-amber-100', 'Processed': 'bg-emerald-50 text-emerald-600 border-emerald-100', 'Under Process': 'bg-blue-50 text-blue-600 border-blue-100' };
             return (
@@ -828,7 +862,6 @@
                 </div>
             </div>
         );
-
         const CategoryManager = ({ title, list, onUpdate }) => {
             const [val, setVal] = useState('');
             return (
