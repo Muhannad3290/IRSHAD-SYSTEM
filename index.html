@@ -11,7 +11,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -163,14 +164,82 @@
                 reader.readAsBinaryString(file);
             };
 
-            // --- EXPORT FUNCTIONS ---
+            // --- IMPROVED PROFESSIONAL EXCEL EXPORT ---
             const exportToExcel = () => {
+                // 1. Structure Data Cleanly
                 const excelData = filteredData.map(c => {
-                    const row = { "SERIAL NO": c.siNo, "DATE & TIME": c.timestamp, "BANK NAME": c.bankName, "BUYER NAME": c.buyer, "SELLER NAME": c.seller, "STATUS": c.status, "STATUS UPDATED ON": c.statusTimestamp || c.timestamp };
-                    allUsedHeadings.forEach(h => { const field = c.customFields.find(f => f.label === h); row[h.toUpperCase()] = field ? field.value : "-"; });
+                    const row = { 
+                        "SERIAL NO": c.siNo, 
+                        "DATE & TIME": c.timestamp, 
+                        "BANK NAME": c.bankName, 
+                        "BUYER NAME": c.buyer, 
+                        "SELLER NAME": c.seller, 
+                        "STATUS": c.status, 
+                        "STATUS UPDATED": c.statusTimestamp || c.timestamp 
+                    };
+                    allUsedHeadings.forEach(h => { 
+                        const field = c.customFields.find(f => f.label === h); 
+                        row[h.toUpperCase()] = field ? field.value : "-"; 
+                    });
                     return row;
                 });
+
+                // 2. Create Sheet
                 const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+                // 3. DEFINE PROFESSIONAL STYLES
+                const headerStyle = {
+                    font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+                    fill: { fgColor: { rgb: "2563EB" } }, // Blue Header
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: "000000" } },
+                        bottom: { style: "thin", color: { rgb: "000000" } },
+                        left: { style: "thin", color: { rgb: "000000" } },
+                        right: { style: "thin", color: { rgb: "000000" } }
+                    }
+                };
+
+                const cellStyle = {
+                    font: { name: "Arial", sz: 10 },
+                    alignment: { vertical: "center", wrapText: true },
+                    border: {
+                        top: { style: "thin", color: { rgb: "D1D5DB" } },
+                        bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+                        left: { style: "thin", color: { rgb: "D1D5DB" } },
+                        right: { style: "thin", color: { rgb: "D1D5DB" } }
+                    }
+                };
+
+                // 4. APPLY STYLES AND CALCULATE COLUMN WIDTHS
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                const colWidths = [];
+
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    let maxWidth = 15; // Minimum column width
+                    
+                    for (let R = range.s.r; R <= range.e.r; ++R) {
+                        const cellRef = XLSX.utils.encode_cell({c: C, r: R});
+                        if (!worksheet[cellRef]) continue;
+
+                        // Apply Styles
+                        if (R === 0) {
+                            worksheet[cellRef].s = headerStyle; // Header Style
+                        } else {
+                            worksheet[cellRef].s = cellStyle; // Data Style
+                        }
+
+                        // Calculate Width (Auto-fit)
+                        const cellValue = worksheet[cellRef].v ? worksheet[cellRef].v.toString() : "";
+                        if (cellValue.length > maxWidth) maxWidth = cellValue.length;
+                    }
+                    // Cap max width to avoid massive columns
+                    colWidths.push({ wch: Math.min(maxWidth + 5, 50) });
+                }
+
+                worksheet['!cols'] = colWidths; // Set the widths
+
+                // 5. Save File
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Registry_Report");
                 XLSX.writeFile(workbook, `Irshad_System_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -340,7 +409,6 @@
                         {currentView === 'dashboard' && (
                             <div className="space-y-6 animate-in fade-in duration-500">
                                 
-                                {/* REPLACED: Large Table with Very Small "Widget" Style Table */}
                                 <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm w-full md:max-w-xs">
                                     <h2 className="font-bold text-slate-800 text-xs mb-3 uppercase tracking-tight flex items-center gap-2">
                                         <Icon name="pie-chart" size={14} className="text-blue-600"/> Analytics
@@ -354,7 +422,6 @@
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {/* Total Row */}
                                                 <tr className="group hover:bg-slate-50 transition-colors">
                                                     <td className="py-2 pl-2 font-black text-slate-800 flex items-center gap-2 text-[10px]">
                                                         <div className="p-1 bg-slate-100 rounded text-slate-600"><Icon name="layers" size={10} /></div>
@@ -363,7 +430,6 @@
                                                     <td className="py-2 text-right pr-2 font-black text-xs text-slate-900">{cases.length}</td>
                                                 </tr>
                                                 
-                                                {/* Status Loop */}
                                                 {statusList.map(st => (
                                                     <tr key={st} className="group hover:bg-slate-50 transition-colors">
                                                         <td className="py-2 pl-2 font-bold text-slate-600 flex items-center gap-2 text-[10px]">
@@ -381,7 +447,6 @@
                                         </table>
                                     </div>
                                 </div>
-                                {/* End of Compact Summary Table */}
 
                                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
                                     <h2 className="font-black text-slate-800 text-lg mb-6 uppercase tracking-tight">Latest Entries</h2>
