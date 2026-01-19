@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v3.0</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v2.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -74,7 +74,7 @@
                 localStorage.setItem('irshad_banks', JSON.stringify(bankList));
                 localStorage.setItem('irshad_status', JSON.stringify(statusList));
                 localStorage.setItem('irshad_headings', JSON.stringify(customHeadings));
-               
+             
                 if (selectedCase) {
                     const updated = cases.find(c => c.id === selectedCase.id);
                     if (updated) setSelectedCase(updated);
@@ -102,7 +102,7 @@
                         if (startDate) matchesDate = matchesDate && caseDate >= new Date(startDate);
                         if (endDate) matchesDate = matchesDate && caseDate <= new Date(endDate);
                     }
-               
+             
                     return matchesSearch && matchesDate;
                 });
             }, [cases, search, startDate, endDate]);
@@ -272,98 +272,6 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
-            // --- SINGLE CASE PDF REPORT (NEW ADDITION) ---
-            const generateSinglePDF = (c) => {
-                const { jsPDF } = window.jspdf;
-                // Using 'p' (Portrait) for individual files to look like a document
-                const doc = new jsPDF('p', 'mm', 'a4');
-                const date = new Date().toLocaleString('en-GB');
-
-                // Header styling (same as targeted PDF)
-                doc.setFontSize(22); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
-                doc.text("CASE DATA SHEET", 14, 20);
-                
-                doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
-                doc.text(`Generated: ${date}`, 14, 26);
-                doc.text(`Serial No: ${c.siNo}`, 14, 31);
-
-                // Status Box
-                doc.setDrawColor(226, 232, 240);
-                doc.setFillColor(248, 250, 252);
-                doc.roundedRect(130, 15, 65, 20, 3, 3, 'FD');
-                
-                doc.setFontSize(9); doc.setTextColor(100, 116, 139);
-                doc.text("CURRENT STATUS", 135, 22);
-                doc.setFontSize(12); doc.setTextColor(59, 130, 246); doc.setFont("helvetica", "bold");
-                doc.text(c.status.toUpperCase(), 135, 30);
-
-                // Vertical Table Construction
-                const tableBody = [
-                    ["Bank Name", c.bankName],
-                    ["Buyer Name", c.buyer],
-                    ["Seller Name", c.seller],
-                    ["Date Recorded", c.timestamp],
-                    ["Status Updated", c.statusTimestamp || c.timestamp]
-                ];
-
-                // Add custom fields to table
-                c.customFields.forEach(f => {
-                    tableBody.push([f.label, f.value || "-"]);
-                });
-
-                doc.autoTable({
-                    body: tableBody,
-                    startY: 45,
-                    theme: 'grid',
-                    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] },
-                    bodyStyles: { fontSize: 10, cellPadding: 5 },
-                    columnStyles: { 
-                        0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 60, textColor: [71, 85, 105] },
-                        1: { textColor: [30, 41, 59] }
-                    }
-                });
-
-                let finalY = doc.lastAutoTable.finalY;
-
-                // Image Handling
-                if (c.photo) {
-                    if (finalY > 200) { doc.addPage(); finalY = 20; }
-                    
-                    doc.setFontSize(10); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
-                    doc.text("ATTACHED PROOF:", 14, finalY + 10);
-                    try {
-                        // Add image (x, y, width, height) - constrained to page width
-                        doc.addImage(c.photo, 'JPEG', 14, finalY + 15, 120, 90);
-                        finalY += 110; 
-                    } catch (e) {
-                        console.error("Image export error", e);
-                    }
-                } else {
-                    finalY += 10;
-                }
-
-                // Signature Section
-                if (finalY > 240) { doc.addPage(); finalY = 20; } // Ensure space for footer
-                
-                const sigY = finalY + 30;
-                doc.setFontSize(10); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
-
-                // 1. Prepared By
-                doc.text("Prepared by:", 14, sigY);
-                doc.setLineWidth(0.5); doc.setDrawColor(30, 41, 59);
-                doc.line(14, sigY + 15, 64, sigY + 15);
-
-                // 2. Verified By
-                doc.text("Verified by:", 84, sigY);
-                doc.line(84, sigY + 15, 134, sigY + 15);
-
-                // 3. Authorized By
-                doc.text("Authorized by:", 154, sigY);
-                doc.line(154, sigY + 15, 204, sigY + 15);
-
-                doc.save(`Case_${c.siNo}_Sheet.pdf`);
-            };
-
             // --- TARGETED PDF WITH SIGNATURES ---
             const generateTargetedPDF = () => {
                 const { bank, status } = reportFilters;
@@ -414,7 +322,7 @@
                 if (status.includes("Delivered")) {
                     let finalY = doc.lastAutoTable.finalY;
                     
-                    if (finalY > 150) {
+                    if (finalY > 160) {
                         doc.addPage();
                         finalY = 20; 
                     }
@@ -425,17 +333,17 @@
                     doc.setTextColor(30, 41, 59);
                     doc.setFont("helvetica", "bold");
 
-                    // 1. Prepared By (Left)
+                    // 1. Prepared By
                     doc.text("Prepared by:", 30, sigY);
                     doc.setLineWidth(0.5);
                     doc.setDrawColor(30, 41, 59);
                     doc.line(30, sigY + 15, 80, sigY + 15);
 
-                    // 2. Delivered By (Center)
+                    // 2. Delivered By
                     doc.text("Delivered by:", 120, sigY);
                     doc.line(120, sigY + 15, 170, sigY + 15);
 
-                    // 3. Received By (Right)
+                    // 3. Received By
                     doc.text("Received by:", 210, sigY);
                     doc.line(210, sigY + 15, 260, sigY + 15);
                 }
@@ -680,7 +588,6 @@
                                                     </div>
                                                     <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
                                                     <button onClick={() => { setSelectedCase(c); setCurrentView('details'); }} className="p-3 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all shadow-sm"><Icon name="eye" size={18} /></button>
-                                                    <button onClick={() => generateSinglePDF(c)} className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm" title="Single PDF"><Icon name="file-text" size={18} /></button>
                                                     <button onClick={() => { setFormData(c); setIsEditing(true); setShowModal(true); }} className="p-3 bg-slate-50 text-slate-400 hover:text-amber-600 rounded-xl transition-all shadow-sm"><Icon name="edit-3" size={18} /></button>
                                                     <button onClick={() => softDelete(c.id)} className="p-3 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl transition-all shadow-sm"><Icon name="trash-2" size={18} /></button>
                                                 </div>
@@ -738,7 +645,6 @@
                                 <div className="mb-4 flex justify-between items-center">
                                     <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase hover:text-blue-600"><Icon name="arrow-left" size={12} /> Return to Vault</button>
                                     <div className="flex gap-4">
-                                        <button onClick={() => generateSinglePDF(selectedCase)} className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"><Icon name="file-text" size={14}/> Export PDF</button>
                                         <button onClick={() => { setFormData(selectedCase); setIsEditing(true); setShowModal(true); }} className="flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-amber-100 hover:bg-amber-100 transition-all shadow-sm"><Icon name="edit-3" size={14}/> Modify</button>
                                         <button onClick={() => softDelete(selectedCase.id)} className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-100 transition-all shadow-sm"><Icon name="trash-2" size={14}/> Delete</button>
                                     </div>
@@ -836,7 +742,7 @@
                                             {bankList.map(b => <option key={b} value={b}>{b}</option>)}
                                         </select>
                                     </div>
-                                   
+                                    
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Select Status(es) <span className="text-blue-500">(Click to Select Multiple)</span></label>
                                         <div className="grid grid-cols-2 gap-2 p-1">
