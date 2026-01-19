@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IRSHAD SYSTEM | Enterprise Registry v3.0</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -210,61 +210,41 @@
 
             // --- PDF LOGIC ---
             
-            // 1. SINGLE DATA PDF (NEW FEATURE)
+            // 1. SINGLE DATA PDF
             const exportSinglePDF = (c) => {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('p', 'mm', 'a4');
                 
-                // Header
                 doc.setFontSize(22); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
                 doc.text(`CASE RECORD #${c.siNo}`, 14, 20);
                 
-                // Meta info
                 doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
                 doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 14, 26);
                 
-                // Status Badge logic in PDF
-                doc.setDrawColor(200, 200, 200);
-                doc.setFillColor(240, 240, 240);
+                doc.setDrawColor(200, 200, 200); doc.setFillColor(240, 240, 240);
                 doc.roundedRect(14, 30, 50, 10, 2, 2, 'FD');
                 doc.setTextColor(50, 50, 50); doc.setFont("helvetica", "bold");
                 doc.text(`Status: ${c.status}`, 16, 36);
 
-                // Table Data Construction
                 const body = [
-                    ["Bank Name", c.bankName],
-                    ["Buyer Name", c.buyer],
-                    ["Seller Name", c.seller],
-                    ["Date Created", c.timestamp],
-                    ["Last Update", c.statusTimestamp || c.timestamp]
+                    ["Bank Name", c.bankName], ["Buyer Name", c.buyer], ["Seller Name", c.seller],
+                    ["Date Created", c.timestamp], ["Last Update", c.statusTimestamp || c.timestamp]
                 ];
                 c.customFields.forEach(f => body.push([f.label, f.value]));
 
                 doc.autoTable({
-                    body: body,
-                    startY: 45,
-                    theme: 'grid',
+                    body: body, startY: 45, theme: 'grid',
                     headStyles: { fillColor: [59, 130, 246] },
-                    columnStyles: { 
-                        0: { fontStyle: 'bold', width: 60, fillColor: [245, 245, 245] },
-                        1: { width: 110 }
-                    }
+                    columnStyles: { 0: { fontStyle: 'bold', width: 60, fillColor: [245, 245, 245] }, 1: { width: 110 } }
                 });
 
-                // Image Handling
                 if (c.photo) {
                     let finalY = doc.lastAutoTable.finalY + 10;
                     if (finalY > 200) { doc.addPage(); finalY = 20; }
-                    
                     doc.setFontSize(12); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
                     doc.text("ATTACHED PROOF:", 14, finalY);
-                    try {
-                        doc.addImage(c.photo, 'JPEG', 14, finalY + 5, 100, 100);
-                    } catch(e) {
-                        doc.text("(Image Error - Invalid Format)", 14, finalY + 10);
-                    }
+                    try { doc.addImage(c.photo, 'JPEG', 14, finalY + 5, 100, 100); } catch(e) {}
                 }
-
                 doc.save(`Record_${c.siNo}.pdf`);
             };
 
@@ -284,7 +264,7 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
-            // 3. TARGETED PDF WITH SIGNATURES (UPDATED FEATURE)
+            // 3. TARGETED PDF WITH SIGNATURES (FIXED CASE SENSITIVITY)
             const generateTargetedPDF = () => {
                 const { bank, status } = reportFilters;
                 if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
@@ -319,9 +299,12 @@
 
                 doc.autoTable({ head: header, body: body, startY: 65, theme: 'grid' });
                 
-                // --- SIGNATURE SECTION (ONLY IF DELIVERED IS SELECTED) ---
-                if (status.includes("Delivered")) {
+                // --- SIGNATURE SECTION (FIXED: CASE INSENSITIVE CHECK) ---
+                const hasDelivered = status.some(s => s.toLowerCase() === "delivered");
+                
+                if (hasDelivered) {
                     let finalY = doc.lastAutoTable.finalY;
+                    // If table ends too low, add page
                     if (finalY > 150) { doc.addPage(); finalY = 20; }
                     
                     const sigY = finalY + 40;
@@ -657,7 +640,6 @@
                                 <div className="mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
                                     <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase hover:text-blue-600 self-start"><Icon name="arrow-left" size={12} /> Return to Vault</button>
                                     <div className="flex gap-4 w-full md:w-auto">
-                                        {/* NEW FEATURE: SINGLE PDF BUTTON */}
                                         <button onClick={() => exportSinglePDF(selectedCase)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-black transition-all"><Icon name="file-text" size={14}/> Download PDF</button>
                                         <button onClick={() => { setFormData(selectedCase); setIsEditing(true); setShowModal(true); }} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-amber-100 hover:bg-amber-100 transition-all shadow-sm"><Icon name="edit-3" size={14}/> Modify</button>
                                         <button onClick={() => softDelete(selectedCase.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-100 transition-all shadow-sm"><Icon name="trash-2" size={14}/> Delete</button>
