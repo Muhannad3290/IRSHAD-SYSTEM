@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IRSHAD SYSTEM | Enterprise Registry v3.1</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v3.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -185,7 +185,9 @@
                 setShowReportModal(false);
             };
 
+            // --- UPGRADED PROFESSIONAL EXCEL GENERATOR ---
             const generateExcelFile = (dataToExport, fileName) => {
+                // 1. Prepare Data
                 const excelData = dataToExport.map(c => {
                     const row = { 
                         "SERIAL NO": c.siNo, 
@@ -193,8 +195,8 @@
                         "BANK NAME": c.bankName, 
                         "BUYER NAME": c.buyer, 
                         "SELLER NAME": c.seller, 
-                        "STATUS": c.status, 
-                        "STATUS UPDATED": c.statusTimestamp || c.timestamp 
+                        "STATUS": c.status.toUpperCase(),
+                        "LAST UPDATE": c.statusTimestamp || c.timestamp 
                     };
                     allUsedHeadings.forEach(h => { 
                         const field = c.customFields.find(f => f.label === h); 
@@ -202,7 +204,51 @@
                     });
                     return row;
                 });
+
+                // 2. Create Sheet
                 const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+                // 3. Define Styles
+                const headerStyle = {
+                    font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+                    fill: { fgColor: { rgb: "1E293B" } }, // Dark Slate color
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
+                };
+
+                const cellStyle = {
+                    font: { name: "Arial", sz: 10 },
+                    alignment: { horizontal: "left", vertical: "center" },
+                    border: { top: { style: "thin", color: { rgb: "E2E8F0" } }, bottom: { style: "thin", color: { rgb: "E2E8F0" } }, left: { style: "thin", color: { rgb: "E2E8F0" } }, right: { style: "thin", color: { rgb: "E2E8F0" } } }
+                };
+
+                // 4. Apply Styles & Calculate Auto-Width
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                const colWidths = [];
+
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    let maxWidth = 10;
+                    for (let R = range.s.r; R <= range.e.r; ++R) {
+                        const cellRef = XLSX.utils.encode_cell({c: C, r: R});
+                        if (!worksheet[cellRef]) continue;
+
+                        // Apply Style based on row
+                        if (R === 0) {
+                            worksheet[cellRef].s = headerStyle;
+                        } else {
+                            worksheet[cellRef].s = cellStyle;
+                        }
+
+                        // Width Calculation
+                        const cellValue = worksheet[cellRef].v ? String(worksheet[cellRef].v) : "";
+                        if (cellValue.length > maxWidth) maxWidth = cellValue.length;
+                    }
+                    colWidths.push({ wch: Math.min(maxWidth + 5, 50) }); // Max width cap
+                }
+                
+                worksheet['!cols'] = colWidths;
+
+                // 5. Export
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Registry_Report");
                 XLSX.writeFile(workbook, fileName);
@@ -264,7 +310,7 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
-            // 3. TARGETED PDF WITH SIGNATURES (FIXED CASE SENSITIVITY)
+            // 3. TARGETED PDF WITH SIGNATURES
             const generateTargetedPDF = () => {
                 const { bank, status } = reportFilters;
                 if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
@@ -299,26 +345,22 @@
 
                 doc.autoTable({ head: header, body: body, startY: 65, theme: 'grid' });
                 
-                // --- SIGNATURE SECTION (FIXED: CASE INSENSITIVE CHECK) ---
+                // --- SIGNATURE SECTION ---
                 const hasDelivered = status.some(s => s.toLowerCase() === "delivered");
                 
                 if (hasDelivered) {
                     let finalY = doc.lastAutoTable.finalY;
-                    // If table ends too low, add page
                     if (finalY > 150) { doc.addPage(); finalY = 20; }
                     
                     const sigY = finalY + 40;
                     doc.setFontSize(10); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
 
-                    // 1. Prepared By
                     doc.text("Prepared by:", 30, sigY);
                     doc.line(30, sigY + 15, 80, sigY + 15);
 
-                    // 2. Delivered By
                     doc.text("Delivered by:", 120, sigY);
                     doc.line(120, sigY + 15, 170, sigY + 15);
 
-                    // 3. Received By
                     doc.text("Received by:", 210, sigY);
                     doc.line(210, sigY + 15, 260, sigY + 15);
                 }
