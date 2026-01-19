@@ -33,25 +33,24 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 1. FIREBASE CONFIGURATION ---
-        
+        // --- 1. FIREBASE CONFIGURATION (CORRECTED) ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyAmCBzRXK5vUSQxVBdPhcAAGSPi0MuskDs",
+          authDomain: "irshad-system.firebaseapp.com",
+          projectId: "irshad-system",
+          storageBucket: "irshad-system.firebasestorage.app",
+          messagingSenderId: "240570536650",
+          appId: "1:240570536650:web:5e9275c93dd6847bc41a33",
+          measurementId: "G-G0X4HP3BFZ"
         };
 
         // Initialize Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
-        const db = firebase.firestore();// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAmCBzRXK5vUSQxVBdPhcAAGSPi0MuskDs",
-  authDomain: "irshad-system.firebaseapp.com",
-  projectId: "irshad-system",
-  storageBucket: "irshad-system.firebasestorage.app",
-  messagingSenderId: "240570536650",
-  appId: "1:240570536650:web:5e9275c93dd6847bc41a33",
-  measurementId: "G-G0X4HP3BFZ"
-};
         
+        // Initialize Firestore
+        const db = firebase.firestore();
         // --- END FIREBASE CONFIG ---
 
         const { useState, useEffect, useRef, useMemo } = React;
@@ -107,7 +106,10 @@ const firebaseConfig = {
                         setIsLoading(false);
                     }, error => {
                         console.error("Firebase Error:", error);
-                        alert("Error connecting to database. Check Config.");
+                        // Only alert if it's a permission error or genuine failure
+                        if(error.code === 'permission-denied') {
+                             alert("Permission Denied: Please check Firestore Rules in Firebase Console.");
+                        }
                         setIsLoading(false);
                     });
 
@@ -175,7 +177,7 @@ const firebaseConfig = {
                 });
             }, [cases, search, startDate, endDate]);
 
-            // --- EXCEL & PDF FUNCTIONS (Unchanged logic, just using fetched data) ---
+            // --- EXCEL & PDF FUNCTIONS ---
             const downloadTemplate = () => {
                 const headers = ["SI_NO", "BANK_NAME", "BUYER", "SELLER", "STATUS", ...customHeadings];
                 const exampleRow = ["1001", "Global Bank", "John Doe", "Jane Smith", "Pending", ...customHeadings.map(() => "Example Value")];
@@ -371,9 +373,6 @@ const firebaseConfig = {
                 const video = videoRef.current;
                 canvas.width = video.videoWidth; canvas.height = video.videoHeight;
                 canvas.getContext('2d').drawImage(video, 0, 0);
-                // Note: Storing Base64 in Firestore is okay for small apps, 
-                // but strictly Firestore docs are limited to 1MB. 
-                // For production, use Firebase Storage.
                 setFormData({ ...formData, photo: canvas.toDataURL('image/jpeg', 0.5) }); 
                 video.srcObject.getTracks().forEach(t => t.stop());
                 setIsCameraActive(false);
@@ -381,7 +380,7 @@ const firebaseConfig = {
 
             const SidebarContent = ({ isMobile }) => (
                 <>
-                     <div className="flex items-center justify-between mb-10 px-2 font-black text-xl text-slate-800">
+                      <div className="flex items-center justify-between mb-10 px-2 font-black text-xl text-slate-800">
                         <div className="flex items-center gap-3">
                             <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg"><Icon name="cloud" /></div>
                             IRSHAD <span className="text-blue-600">CLOUD</span>
@@ -707,7 +706,6 @@ const firebaseConfig = {
                         </div>
                     )}
 
-                    {/* SETTINGS, REPORTS, IMPORTS, CAMERA MODALS SAME AS BEFORE BUT USING NEW STATE FUNCTIONS */}
                     {showReportModal && (
                         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
                             <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
@@ -747,7 +745,7 @@ const firebaseConfig = {
                         </div>
                     )}
 
-                     {showImportModal && (
+                      {showImportModal && (
                         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
                             <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
                                 <div className="text-center">
