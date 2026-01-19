@@ -74,7 +74,7 @@
                 localStorage.setItem('irshad_banks', JSON.stringify(bankList));
                 localStorage.setItem('irshad_status', JSON.stringify(statusList));
                 localStorage.setItem('irshad_headings', JSON.stringify(customHeadings));
-             
+              
                 if (selectedCase) {
                     const updated = cases.find(c => c.id === selectedCase.id);
                     if (updated) setSelectedCase(updated);
@@ -102,7 +102,7 @@
                         if (startDate) matchesDate = matchesDate && caseDate >= new Date(startDate);
                         if (endDate) matchesDate = matchesDate && caseDate <= new Date(endDate);
                     }
-             
+              
                     return matchesSearch && matchesDate;
                 });
             }, [cases, search, startDate, endDate]);
@@ -319,10 +319,13 @@
                 });
 
                 // --- SIGNATURE SECTION ONLY FOR DELIVERED STATUS ---
+                // This block executes ONLY if "Delivered" is included in the selected filters
                 if (status.includes("Delivered")) {
                     let finalY = doc.lastAutoTable.finalY;
                     
-                    if (finalY > 160) {
+                    // Check if there is enough space (approx 50mm) at the bottom. 
+                    // 150mm allows enough room on A4 Landscape (210mm height)
+                    if (finalY > 150) {
                         doc.addPage();
                         finalY = 20; 
                     }
@@ -333,17 +336,17 @@
                     doc.setTextColor(30, 41, 59);
                     doc.setFont("helvetica", "bold");
 
-                    // 1. Prepared By
+                    // 1. Prepared By (Left)
                     doc.text("Prepared by:", 30, sigY);
                     doc.setLineWidth(0.5);
                     doc.setDrawColor(30, 41, 59);
                     doc.line(30, sigY + 15, 80, sigY + 15);
 
-                    // 2. Delivered By
+                    // 2. Delivered By (Center)
                     doc.text("Delivered by:", 120, sigY);
                     doc.line(120, sigY + 15, 170, sigY + 15);
 
-                    // 3. Received By
+                    // 3. Received By (Right)
                     doc.text("Received by:", 210, sigY);
                     doc.line(210, sigY + 15, 260, sigY + 15);
                 }
@@ -742,7 +745,7 @@
                                             {bankList.map(b => <option key={b} value={b}>{b}</option>)}
                                         </select>
                                     </div>
-                                    
+                                   
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Select Status(es) <span className="text-blue-500">(Click to Select Multiple)</span></label>
                                         <div className="grid grid-cols-2 gap-2 p-1">
