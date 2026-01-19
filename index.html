@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRSHAD SYSTEM | Enterprise Registry v2.9</title>
+    <title>IRSHAD SYSTEM | Enterprise Registry v3.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -53,9 +53,10 @@
             const [showReportModal, setShowReportModal] = useState(false);
             const [showImportModal, setShowImportModal] = useState(false);
 
+            // Report Filters State
             const [reportFilters, setReportFilters] = useState({ bank: '', status: [] });
-            const [isEditing, setIsEditing] = useState(false);
             
+            const [isEditing, setIsEditing] = useState(false);
             const [search, setSearch] = useState('');
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
@@ -74,7 +75,7 @@
                 localStorage.setItem('irshad_banks', JSON.stringify(bankList));
                 localStorage.setItem('irshad_status', JSON.stringify(statusList));
                 localStorage.setItem('irshad_headings', JSON.stringify(customHeadings));
-             
+               
                 if (selectedCase) {
                     const updated = cases.find(c => c.id === selectedCase.id);
                     if (updated) setSelectedCase(updated);
@@ -102,7 +103,7 @@
                         if (startDate) matchesDate = matchesDate && caseDate >= new Date(startDate);
                         if (endDate) matchesDate = matchesDate && caseDate <= new Date(endDate);
                     }
-             
+               
                     return matchesSearch && matchesDate;
                 });
             }, [cases, search, startDate, endDate]);
@@ -272,7 +273,83 @@
                 doc.save("Irshad_Registry_Report.pdf");
             };
 
-            // --- TARGETED PDF WITH SIGNATURES ---
+            // --- SINGLE CASE PDF REPORT (RE-DESIGNED TO MATCH SCREENSHOT - Horizontal) ---
+            const generateSinglePDF = (c) => {
+                const { jsPDF } = window.jspdf;
+                // Landscape 'l' to fit the horizontal table
+                const doc = new jsPDF('l', 'mm', 'a4');
+                const date = new Date().toLocaleString('en-GB');
+
+                // 1. Header (Matches Screenshot)
+                doc.setFontSize(22); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
+                doc.text("OFFICIAL STATUS REPORT", 14, 20);
+                
+                doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
+                doc.text(`Generated: ${date}`, 14, 26);
+
+                // 2. Criteria Box (Matches Screenshot)
+                doc.setDrawColor(226, 232, 240);
+                doc.setFillColor(248, 250, 252);
+                doc.roundedRect(14, 32, 270, 25, 3, 3, 'FD');
+
+                doc.setFontSize(11); doc.setTextColor(59, 130, 246); doc.setFont("helvetica", "bold");
+                doc.text("REPORT CRITERIA:", 20, 48);
+                doc.setTextColor(30, 41, 59);
+                doc.text(`BANK: ${c.bankName}`, 70, 48);
+                doc.text(`STATUS: ${c.status}`, 160, 48);
+
+                // 3. Horizontal Table Data (Matches Screenshot)
+                const headers = [["SI No", "Date", "Bank", "Buyer", "Seller", "Status", ...c.customFields.map(f => f.label)]];
+                const rowData = [
+                    c.siNo,
+                    c.timestamp,
+                    c.bankName,
+                    c.buyer,
+                    c.seller,
+                    c.status,
+                    ...c.customFields.map(f => f.value)
+                ];
+
+                doc.autoTable({
+                    head: headers,
+                    body: [rowData],
+                    startY: 65,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [30, 41, 59], // Dark Blue/Black header
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold', 
+                        halign: 'center',
+                        valign: 'middle'
+                    },
+                    bodyStyles: { 
+                        fontSize: 9, 
+                        cellPadding: 4, 
+                        fillColor: [245, 247, 250], 
+                        textColor: [30, 41, 59],
+                        halign: 'center'
+                    },
+                    columnStyles: { 
+                        0: { fontStyle: 'bold' } 
+                    }
+                });
+
+                let finalY = doc.lastAutoTable.finalY;
+
+                // Photo Handling
+                if (c.photo) {
+                    if (finalY > 120) { doc.addPage(); finalY = 20; }
+                    doc.setFontSize(10); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
+                    doc.text("ATTACHED PROOF:", 14, finalY + 15);
+                    try {
+                        doc.addImage(c.photo, 'JPEG', 14, finalY + 20, 100, 75);
+                    } catch (e) { console.error("Image export error", e); }
+                }
+
+                doc.save(`Case_${c.siNo}_Report.pdf`);
+            };
+
+            // --- TARGETED PDF ---
             const generateTargetedPDF = () => {
                 const { bank, status } = reportFilters;
                 if (!bank && status.length === 0) { alert("Please select at least one filter criterion."); return; }
@@ -321,29 +398,18 @@
                 // --- SIGNATURE SECTION ONLY FOR DELIVERED STATUS ---
                 if (status.includes("Delivered")) {
                     let finalY = doc.lastAutoTable.finalY;
-                    
-                    if (finalY > 160) {
-                        doc.addPage();
-                        finalY = 20; 
-                    }
+                    if (finalY > 150) { doc.addPage(); finalY = 20; }
                     
                     const sigY = finalY + 30;
+                    doc.setFontSize(10); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
 
-                    doc.setFontSize(10);
-                    doc.setTextColor(30, 41, 59);
-                    doc.setFont("helvetica", "bold");
-
-                    // 1. Prepared By
                     doc.text("Prepared by:", 30, sigY);
-                    doc.setLineWidth(0.5);
-                    doc.setDrawColor(30, 41, 59);
+                    doc.setLineWidth(0.5); doc.setDrawColor(30, 41, 59);
                     doc.line(30, sigY + 15, 80, sigY + 15);
 
-                    // 2. Delivered By
                     doc.text("Delivered by:", 120, sigY);
                     doc.line(120, sigY + 15, 170, sigY + 15);
 
-                    // 3. Received By
                     doc.text("Received by:", 210, sigY);
                     doc.line(210, sigY + 15, 260, sigY + 15);
                 }
@@ -353,9 +419,10 @@
                 setShowReportModal(false);
             };
 
+            // --- FIXED: SAFE TOGGLE FUNCTION (Prevents "Blank Website" Crash) ---
             const toggleReportStatus = (selectedStatus) => {
                 setReportFilters(prev => {
-                    const currentStatuses = prev.status;
+                    const currentStatuses = Array.isArray(prev.status) ? prev.status : []; 
                     if (currentStatuses.includes(selectedStatus)) {
                         return { ...prev, status: currentStatuses.filter(s => s !== selectedStatus) };
                     } else {
@@ -588,6 +655,7 @@
                                                     </div>
                                                     <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
                                                     <button onClick={() => { setSelectedCase(c); setCurrentView('details'); }} className="p-3 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all shadow-sm"><Icon name="eye" size={18} /></button>
+                                                    <button onClick={() => generateSinglePDF(c)} className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm" title="Single PDF"><Icon name="file-text" size={18} /></button>
                                                     <button onClick={() => { setFormData(c); setIsEditing(true); setShowModal(true); }} className="p-3 bg-slate-50 text-slate-400 hover:text-amber-600 rounded-xl transition-all shadow-sm"><Icon name="edit-3" size={18} /></button>
                                                     <button onClick={() => softDelete(c.id)} className="p-3 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl transition-all shadow-sm"><Icon name="trash-2" size={18} /></button>
                                                 </div>
@@ -645,6 +713,7 @@
                                 <div className="mb-4 flex justify-between items-center">
                                     <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase hover:text-blue-600"><Icon name="arrow-left" size={12} /> Return to Vault</button>
                                     <div className="flex gap-4">
+                                        <button onClick={() => generateSinglePDF(selectedCase)} className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"><Icon name="file-text" size={14}/> Export PDF</button>
                                         <button onClick={() => { setFormData(selectedCase); setIsEditing(true); setShowModal(true); }} className="flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-amber-100 hover:bg-amber-100 transition-all shadow-sm"><Icon name="edit-3" size={14}/> Modify</button>
                                         <button onClick={() => softDelete(selectedCase.id)} className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-red-100 hover:bg-red-100 transition-all shadow-sm"><Icon name="trash-2" size={14}/> Delete</button>
                                     </div>
@@ -742,16 +811,18 @@
                                             {bankList.map(b => <option key={b} value={b}>{b}</option>)}
                                         </select>
                                     </div>
-                                    
+                                   
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Select Status(es) <span className="text-blue-500">(Click to Select Multiple)</span></label>
                                         <div className="grid grid-cols-2 gap-2 p-1">
                                             {statusList.map(s => {
-                                                const isSelected = reportFilters.status.includes(s);
+                                                const currentStatus = Array.isArray(reportFilters.status) ? reportFilters.status : [];
+                                                const isSelected = currentStatus.includes(s);
                                                 return (
                                                     <button 
+                                                        type="button"
                                                         key={s} 
-                                                        onClick={() => toggleReportStatus(s)}
+                                                        onClick={(e) => { e.preventDefault(); toggleReportStatus(s); }}
                                                         className={`p-3 rounded-xl text-xs font-black uppercase transition-all border shadow-sm ${isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-[1.02]' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`}
                                                     >
                                                         {s}
@@ -760,7 +831,7 @@
                                                 )
                                             })}
                                         </div>
-                                        <p className="text-[10px] text-center text-slate-400 font-bold mt-1">{reportFilters.status.length === 0 ? "All statuses will be included" : `${reportFilters.status.length} status(es) selected`}</p>
+                                        <p className="text-[10px] text-center text-slate-400 font-bold mt-1">{!reportFilters.status || reportFilters.status.length === 0 ? "All statuses will be included" : `${reportFilters.status.length} status(es) selected`}</p>
                                     </div>
                                 </div>
                                 <div className="pt-4 flex gap-3">
