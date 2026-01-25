@@ -301,14 +301,47 @@
             }, [cases, search, startDate, endDate]);
 
             const downloadTemplate = () => {
-                const headers = ["SI_NO", "BANK_NAME", "BUYER", "SELLER", "STATUS", ...customHeadings];
-                const exampleRow = ["1001", "Global Bank", "John Doe", "Jane Smith", "Pending", ...customHeadings.map(() => "Example Value")];
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Import_Template");
-                XLSX.writeFile(workbook, "Irshad_System_Import_Template.xlsx");
-            };
+    // 1. Define your own custom headers here
+    // Replace these strings with your exact required column names
+    const headers = [
+        "SI_NO", 
+        "BANK_NAME", 
+        "BUYER", 
+        "SELLER", 
+        "STATUS", 
+        ...customHeadings // This adds any headings you've created in Settings
+    ];
 
+    // 2. Define the example data that appears in row 2
+    const exampleRow = [
+        "1001", 
+        "Global Bank", 
+        "John Doe", 
+        "Jane Smith", 
+        "Pending", 
+        ...customHeadings.map(() => "Sample Data")
+    ];
+
+    // Create the worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+    
+    // Optional: Add some basic styling to the header row
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_col(C) + "1"; // Targeting Row 1
+        if (!worksheet[address]) continue;
+        worksheet[address].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "2563EB" } } // Blue background
+        };
+    }
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Import_Template");
+    
+    // Save the file
+    XLSX.writeFile(workbook, "Custom_Import_Template.xlsx");
+};
             const handleBulkImport = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -647,3 +680,4 @@
     </script>
 </body>
 </html>
+
